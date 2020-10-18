@@ -1,0 +1,230 @@
+---
+title: "Used Cars Dataset (Kaggle)"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source("cars.R")
+```
+
+## Cars in Georgia:
+
+### Scatter Plot of Cars Sold vs Average Price:
+
+```{r}
+df <- tibble(make_count_GA)
+ggplot(df, aes(`Number Sold`, `Average Price`)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  geom_jitter() +
+  xlab("Number Sold") +
+  ylab("Average Price") +
+  ggtitle("Number Sold vs Average Price") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_smooth() #using method 'loess'
+```
+
+### Box Plot
+
+#### Check Outliers
+
+```{r}
+par(mfrow=c(1, 2))  # divide graph area in 2 columns
+boxplot(make_count_GA$`Number Sold`, main="Number Sold") 
+boxplot(make_count_GA$`Average Price`, main="Average Price")
+```
+
+### Density Plot of Average Car Price:
+
+#### Checking Normality
+
+```{r}
+plot(density(make_count_GA$`Average Price`), main="Density Plot: Average Price", ylab="Frequency", sub=paste("Skewness:", round(e1071::skewness(make_count_GA$`Average Price`), 2))) 
+polygon(density(make_count_GA$`Average Price`), col="cornflowerblue")
+```
+
+### Build Linear Model (x: Number Sold, y: Average Price)
+
+```{r}
+linearMod <- lm(make_count_GA$`Average Price` ~ make_count_GA$`Number Sold`, data = cars_in_GA)
+summary(linearMod)
+```
+
+
+## Comparing Transmission Types and Prices:
+
+### Manual vs Auto:
+
+#### Density Plot
+
+```{r}
+options(scipen=5)
+df_m <- tibble(manual_trans)
+df_a <- tibble(auto_trans)
+
+plot_m <- ggplot(df_m, aes(Price), col="cornflowerblue", fill = "cornflowerblue") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  geom_density(kernel = "gaussian") + xlab("Price") +
+  ggtitle("Density Plot of \n Manual Cars' Price") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_density(color="darkblue", fill="lightblue") +
+  geom_vline(aes(xintercept=mean(Price)),
+            color="blue", linetype="dashed", size=1)
+
+plot_a <- ggplot(df_a, aes(Price)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  geom_density(kernel = "gaussian") +
+  xlab("Price") +
+  ggtitle("Density Plot of \n Automatic Cars' Price") +
+  theme(plot.title = element_text(hjust = 0.5))  +
+  geom_density(color="darkblue", fill="lightblue") +
+  geom_vline(aes(xintercept = mean(Price)),
+            color="blue", linetype="dashed", size=1)
+
+summary(auto_trans$Price)
+summary(manual_trans$Price)
+plot_grid(plot_m, plot_a)
+```
+
+#### Box Plot
+
+```{r}
+par(mfrow=c(1, 2))  # divide graph area in 2 columns
+boxplot(manual_trans$Price, main="Manual Transmission Car Prices") 
+boxplot(auto_trans$Price, main="Automatic Transmission Car Prices")
+```
+
+### Takeaway
+
+
+There are way more automatic transmission cars than manual transmission. The prices of manual transmission cars are approximately normally distributed, with most cars being in the $12,000 to $20,000 price range. On the other hand, automatic cars have a very positively skewed distribution. Most cars are within $80,000, but there are many outliers -- cars priced up to almost $500,000. Despite this, I believe we **cannot** exclude these outliers as the high amount of expensive vehicles could be related to state mean income. Further exploration on this topic is below.
+
+
+
+## Exploring Relationship with State Mean Income and Mean Price of Cars Sold in Each State:
+
+### Mean Income by State
+
+#### Scatterplot
+```{r}
+df <- tibble(state_mean_income)
+ggplot(df, aes(States, `Mean Income`)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  geom_jitter() +
+  xlab("State Name") +
+  ylab("Mean Income") +
+  ggtitle("States and Their Mean Income") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### Density Plot
+
+```{r}
+ggplot(df, aes(`Mean Income`)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  geom_density(kernel = "gaussian") +
+  xlab("Mean Income") +
+  ggtitle("Density Plot of \n State Mean Income") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_density(color="darkblue", fill="lightblue") +
+  geom_vline(aes(xintercept=mean(`Mean Income`)), color="blue", linetype="dashed", size=1)
+```
+
+### Mean Price of Cars Sold in Each State
+
+#### Scatterplot
+
+```{r}
+#selecting and cleaning data
+price_and_state <- test %>%
+  select(Price, State) %>%
+  mutate(State = toupper(State))%>%
+  group_by(State) %>%
+  mutate(Price = mean(Price)) %>%
+  unique() 
+
+#sort by state name
+price_and_state <- price_and_state[order(price_and_state$State), ]
+
+#plot
+df_ps <- tibble(price_and_state)
+ggplot(df_ps, aes(State, Price)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  geom_jitter() +
+  xlab("State Name") +
+  ylab("Average Car Price") +
+  ggtitle("States and Average Car Price") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### Density Plot
+
+```{r}
+ggplot(df_ps, aes(Price)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  geom_density(kernel = "gaussian") +
+  xlab("Price") +
+  ggtitle("Density Plot of \n Average Car Price") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_density(color="darkblue", fill="lightblue") +
+  geom_vline(aes(xintercept=mean(Price)), color="blue", linetype="dashed", size=1)
+```
+
+
+### Combined Data (State, Mean Income, Mean Price of Cars)
+
+```{r}
+state_mean_income <- state_mean_income[state_mean_income$States != "Puerto Rico", ]
+state_price_income <- tibble(price_and_state, state_mean_income) 
+state_price_income <- state_price_income %>%
+  select(State, Price, `Mean Income`)
+summary(state_price_income)
+```
+
+#### 2-Variable Scatter Plot
+
+```{r}
+df_ps <- tibble(state_price_income)
+ggplot(df_ps, aes(`Mean Income`, Price)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  geom_jitter() +
+  geom_smooth() +
+  xlab("Mean Income") +
+  ylab("Average Car Price") +
+  ggtitle("States' Mean Income vs Average Car Price") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+#### Construct Regression Model
+
+##### Linear
+
+```{r}
+model_l <- lm(Price ~ `Mean Income`, data = state_price_income)
+summary(model_l)
+```
+
+
+##### Polynomial
+
+```{r}
+model_p5 <- lm(Price ~ poly(`Mean Income`, 5), data = state_price_income)
+model_p10 <- lm(Price ~ poly(`Mean Income`, 10), data = state_price_income)
+model_p15 <- lm(Price ~ poly(`Mean Income`, 15), data = state_price_income)
+model_p20 <- lm(Price ~ poly(`Mean Income`, 20), data = state_price_income)
+
+
+summary(model_p5)
+summary(model_p10)
+summary(model_p15)
+summary(model_p20)
+
+
+```
+
+#### Conclusion
+
+There seems to be no significant relationship between the average income and average price of cars sold.
+
+
+
